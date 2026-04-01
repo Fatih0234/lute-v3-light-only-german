@@ -65,6 +65,24 @@
 
       <div id="translation-container">
         <div>{{ form.translation }}</div>
+        <div id="translation-actions">
+          <button type="button" id="generate-translation-btn" class="btn btn-secondary" title="Generate translation using DeepL with sentence context">
+            Generate Translation
+          </button>
+          <span id="translation-status" style="margin-left: 10px; font-size: 0.9em; color: #666;"></span>
+        </div>
+        
+        <!-- Debug: Show context used for translation -->
+        <div id="translation-debug" style="margin-top: 10px; padding: 8px; background: #f5f5f5; border: 1px solid #ddd; border-radius: 4px; font-size: 0.85em;">
+          <strong>Debug - Context used for translation:</strong>
+          <div id="debug-context-text" style="margin-top: 5px; font-family: monospace; color: #333; max-height: 100px; overflow-y: auto; white-space: pre-wrap;">
+            (No context available)
+          </div>
+          <div id="debug-term-text" style="margin-top: 5px; color: #666;">
+            Term: <span id="debug-term-value">(none)</span>
+          </div>
+        </div>
+        
         <img {% if term.current_image %}style="grid-column: -1; display: block"{% endif %} 
              class="zoomableTermImage"
              id="term_image"
@@ -328,5 +346,161 @@
       }
     });
   }
+
+
+  // =========================================
+  // Context-aware translation with DeepL
+  // =========================================
+
+  $(document).ready(function() {
+    // Get context from template - handle both null and empty string
+    let sentenceContext = {{ sentence_context | tojson | safe }};
+    if (sentenceContext === null || sentenceContext === undefined) {
+      sentenceContext = "";
+    }
+    
+    const termText = $("#text").val() || "";
+    
+    console.log("[Translation] Form loaded. Term text:", termText);
+    console.log("[Translation] Raw context from template:", {{ sentence_context | tojson | safe }});
+    console.log("[Translation] Context length:", sentenceContext.length, "chars");
+    console.log("[Translation] Context preview:", sentenceContext.substring(0, 50));
+    
+    // DEBUG: Display context in the debug section
+    const debugContextDiv = $("#debug-context-text");
+    const debugTermSpan = $("#debug-term-value");
+    
+    if (sentenceContext && sentenceContext.length > 0) {
+      debugContextDiv.text(sentenceContext);
+      debugContextDiv.css("color", "#333");
+    } else {
+      debugContextDiv.text("(No context available - sentence context not passed from reader)");
+      debugContextDiv.css("color", "#999");
+    }
+    
+    debugTermSpan.text(termText || "(none)");
+    
+    // Also show validation info
+    if (sentenceContext && termText) {
+      const isInContext = sentenceContext.indexOf(termText) >= 0;
+      console.log("[Translation] Validation - term in context:", isInContext);
+      if (!isInContext) {
+        console.warn("[Translation] WARNING: Term text not found in context!");
+        console.warn("[Translation] Term:", termText);
+        console.warn("[Translation] Context:", sentenceContext);
+        debugContextDiv.append("\n\n[WARNING: Term not found in this context!]");
+        debugContextDiv.css("color", "#c00");
+      }
+    }
+
+    $("#generate-translation-btn").click(function() {
+      const btn = $(this);
+      const statusSpan = $("#translation-status");
+      const translationField = $("#translation");
+      
+      const currentText = termText;
+      const context = sentenceContext;
+
+      if (!currentText) {
+        statusSpan.text("ERROR: No term text found");
+        console.error("[Translation] No term text found in #text field");
+        return;
+      }
+
+      if (!context || context.length === 0) {
+        statusSpan.text("ERROR: No sentence context available");
+        console.error("[Translation] No sentence context available. Context value:", context);
+        return;
+      }
+
+      // Disable button during request
+      btn.prop("disabled", true);
+      statusSpan.text("Requesting translation...");
+      
+      // DEBUG: Show what we're sending
+      console.log("[Translation] ==========================================");
+      console.log("[Translation] REQUEST:");
+      console.log("[Translation]   Term (selectedText):", currentText);
+      console.log("[Translation]   Context (contextText):", context);
+      console.log("[Translation]   Context length:", context.length, "chars");
+      console.log("[Translation]   Term in context?:", context.indexOf(currentText) >= 0);
+      
+      // Update debug section with request info
+      $("#debug-context-text").append("\n\n--- REQUEST ---\n");
+      $("#debug-context-text").append("Sending term: '" + currentText + "'\n");
+      $("#debug-context-text").append("Context length: " + context.length + " chars\n");
+      $("#debug-context-text").append("Term in context?: " + (context.indexOf(currentText) >= 0 ? "YES" : "NO") + "\n");
+
+      $.ajax({
+        url: "/translation/generate",
+        type: "POST",
+        contentType: "application/json",
+        data: JSON.stringify({
+          selectedText: currentText,
+          contextText: context,
+          sourceLang: "DE",
+          targetLang: "EN"
+        }),
+        success: function(response) {
+          console.log("[Translation] RESPONSE:", response);
+          
+          // DEBUG: Update debug section
+          $("#debug-context-text").append("\n--- RESPONSE ---\n");
+          $("#debug-context-text").append("Success: " + response.success + "\n");
+          if (response.translation) {
+            $("#debug-context-text").append("Translation: '" + response.translation + "'\n");
+          }
+          if (response.error) {
+            $("#debug-context-text").append("Error: " + response.error + "\n");
+          }
+          if (response.debug) {
+            $("#debug-context-text").append("Debug: " + JSON.stringify(response.debug, null, 2) + "\n");
+          }
+          
+          if (response.success && response.translation) {
+            // Append as new line (as requested)
+            const currentTranslation = translationField.val() || "";
+            let newTranslation;
+            if (currentTranslation) {
+              newTranslation = currentTranslation + "\n" + response.translation;
+            } else {
+              newTranslation = response.translation;
+            }
+            translationField.val(newTranslation);
+            
+            statusSpan.text("OK: Translation added");
+            console.log("[Translation] Success. Translation added:", response.translation);
+          } else {
+            statusSpan.text("ERROR: " + (response.error || "Unknown error"));
+            console.error("[Translation] Failed:", response.error);
+            console.error("[Translation] Debug info:", response.debug);
+          }
+        },
+        error: function(xhr, status, error) {
+          let errorMsg = "Request failed: " + error;
+          try {
+            const response = JSON.parse(xhr.responseText);
+            errorMsg = response.error || errorMsg;
+            console.error("[Translation] Server error:", response);
+            
+            // DEBUG: Update debug section with error
+            $("#debug-context-text").append("\n--- AJAX ERROR ---\n");
+            $("#debug-context-text").append("Status: " + status + "\n");
+            $("#debug-context-text").append("Error: " + error + "\n");
+            $("#debug-context-text").append("Response: " + xhr.responseText + "\n");
+          } catch (e) {
+            console.error("[Translation] AJAX error:", status, error);
+            $("#debug-context-text").append("\n--- AJAX ERROR ---\n");
+            $("#debug-context-text").append("Status: " + status + "\n");
+            $("#debug-context-text").append("Error: " + error + "\n");
+          }
+          statusSpan.text("ERROR: " + errorMsg);
+        },
+        complete: function() {
+          btn.prop("disabled", false);
+        }
+      });
+    });
+  });
 
 </script>

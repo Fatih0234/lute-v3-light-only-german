@@ -196,7 +196,43 @@ function _show_wordframe_url(url) {
 
 function show_term_edit_form(el) {
   const wid = parseInt(el.data('wid'));
-  _show_wordframe_url(`/read/edit_term/${wid}`);
+  // Get sentence context for translation
+  const sentenceContext = _get_sentence_context(el);
+  const contextParam = encodeURIComponent(sentenceContext);
+  _show_wordframe_url(`/read/edit_term/${wid}?context=${contextParam}`);
+}
+
+/**
+ * Get the full sentence text for a given element.
+ * Used to provide context for translation.
+ */
+function _get_sentence_context(el) {
+  // Use attr to get raw string value, data() converts types
+  const sentenceId = el.attr('data-sentence-id');
+  console.log('[Translation] Element sentence-id attr:', sentenceId);
+  
+  // Check for undefined/null/empty, but allow "0" as valid
+  if (sentenceId === undefined || sentenceId === null || sentenceId === '') {
+    console.log('[Translation] No sentence-id found for element:', el);
+    console.log('[Translation] Element attributes:', el[0].attributes);
+    return '';
+  }
+
+  // Find all elements in the same sentence
+  const sentenceElements = $(`span[data-sentence-id="${sentenceId}"]`);
+  console.log(`[Translation] Found ${sentenceElements.length} elements for sentence ${sentenceId}`);
+
+  // Build full sentence text from data-text attributes
+  // Remove zero-width spaces (ZWS) that are used for tokenization
+  const zws = "\u200B";
+  const sentenceText = sentenceElements.map(function() {
+    const text = $(this).attr('data-text') || $(this).text();
+    return text.replace(new RegExp(zws, 'g'), '');
+  }).get().join('');
+
+  console.log(`[Translation] Got context for sentence ${sentenceId}: "${sentenceText.substring(0, 50)}..."`);
+  console.log(`[Translation] Context length: ${sentenceText.length} chars`);
+  return sentenceText;
 }
 
 function show_bulk_term_edit_form(count_of_terms) {
@@ -246,7 +282,10 @@ function show_multiword_term_edit_form(selected) {
   const lid = parseInt(selected.eq(0).data('lang-id'));
   // "/" in the term cause problems with routing, so hack a fix.
   const sendtext = text.replace(/\//g, "LUTESLASH");
-  _show_wordframe_url(`/read/termform/${lid}/${sendtext}`);
+  // Get sentence context from the first selected element
+  const sentenceContext = _get_sentence_context(selected.eq(0));
+  const contextParam = encodeURIComponent(sentenceContext);
+  _show_wordframe_url(`/read/termform/${lid}/${sendtext}?context=${contextParam}`);
 }
 
 

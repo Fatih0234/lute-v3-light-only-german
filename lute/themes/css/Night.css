@@ -117,3 +117,9 @@ span.hamburger {
 #reading_menu .reading-menu-item:hover {
   color: var(--background-color);
 }
+
+/* Multi-word selection highlight - darker for Night mode */
+.newmultiterm {
+  background-color: #4a5568 !important; /* dark gray-blue */
+  color: var(--font-color) !important;
+}

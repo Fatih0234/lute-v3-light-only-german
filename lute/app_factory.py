@@ -21,6 +21,10 @@ from flask import (
 )
 from sqlalchemy.event import listens_for
 from sqlalchemy.pool import Pool
+from dotenv import load_dotenv
+
+# Load environment variables from .env file if present
+load_dotenv()
 
 from lute.config.app_config import AppConfig
 from lute.db import db
@@ -60,6 +64,7 @@ from lute.settings.routes import bp as settings_bp
 from lute.themes.routes import bp as themes_bp
 from lute.stats.routes import bp as stats_bp
 from lute.cli.commands import bp as cli_bp
+from lute.translation.routes import bp as translation_bp
 
 
 def _setup_app_dir(dirname, readme_content):
@@ -344,6 +349,7 @@ def _create_app(app_config, extra_config):
     app.register_blueprint(settings_bp)
     app.register_blueprint(themes_bp)
     app.register_blueprint(stats_bp)
+    app.register_blueprint(translation_bp)
     app.register_blueprint(cli_bp)
     if app_config.is_test_db:
         app.register_blueprint(dev_api_bp)

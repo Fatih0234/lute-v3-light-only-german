@@ -212,6 +212,8 @@ def term_form(langid, text):
     term = repo.find_or_new(langid, usetext)
     if term.status == 0:
         term.status = 1
+    # Get sentence context from URL parameter
+    sentence_context = request.args.get("context", "")
     return handle_term_form(
         term,
         repo,
@@ -219,6 +221,7 @@ def term_form(langid, text):
         "/read/term_edit_form.html",
         render_template("/read/updated.html", term_text=term.text),
         embedded_in_reading_frame=True,
+        sentence_context=sentence_context,
     )
 
 
@@ -232,6 +235,8 @@ def edit_term_form(term_id):
     # print(f"editing term {term_id}", flush=True)
     if term.status == 0:
         term.status = 1
+    # Get sentence context from URL parameter
+    sentence_context = request.args.get("context", "")
     return handle_term_form(
         term,
         repo,
@@ -239,6 +244,7 @@ def edit_term_form(term_id):
         "/read/term_edit_form.html",
         render_template("/read/updated.html", term_text=term.text),
         embedded_in_reading_frame=True,
+        sentence_context=sentence_context,
     )
 
 

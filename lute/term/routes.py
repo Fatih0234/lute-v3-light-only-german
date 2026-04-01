@@ -224,6 +224,7 @@ def handle_term_form(
     form_template_name,
     return_on_success,
     embedded_in_reading_frame=False,
+    sentence_context=None,
 ):  # pylint: disable=too-many-arguments,too-many-positional-arguments
     """
     Handle a form post.
@@ -278,6 +279,7 @@ def handle_term_form(
         hide_pronunciation=hide_pronunciation,
         tags=repo.get_term_tags(),
         embedded_in_reading_frame=embedded_in_reading_frame,
+        sentence_context=sentence_context,
     )
 
 
