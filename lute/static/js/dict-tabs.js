@@ -10,6 +10,7 @@ class LookupButton {
   static TERM_FORM_CONTAINER = null;
   static TERM_DICTS = null;
   static LANG_ID = null;
+  static LANG_NAME = null;
 
 
   /** All LookupButtons created. */
@@ -144,6 +145,44 @@ class ImageLookupButton extends GeneralLookupButton {
     };  // end handler
 
     super("dict-image-btn", null, "Lookup images", "dict-image-btn", handler);
+  }
+}
+
+
+class YouGlishLookupButton extends GeneralLookupButton {
+  constructor() {
+    let handler = function(iframe) {
+      const text = LookupButton.TERM_FORM_CONTAINER.querySelector("#text").value;
+      
+      // Remove zero-width spaces and clean up
+      const zeroWidthSpace = '\u200b';
+      const cleanText = text.replaceAll(zeroWidthSpace, '').trim();
+      
+      // Get language name and map to YouGlish language code
+      const langName = LookupButton.LANG_NAME || '';
+      let langCode = 'english'; // default
+      
+      const langMap = {
+        'English': 'english',
+        'German': 'german',
+        'Deutsch': 'german'
+      };
+      
+      if (langMap[langName]) {
+        langCode = langMap[langName];
+      }
+      
+      const encodedText = encodeURIComponent(cleanText);
+      const url = `https://youglish.com/pronounce/${encodedText}/${langCode}`;
+      
+      let settings = 'width=1000, height=700, scrollbars=yes, menubar=no, resizable=yes, status=no';
+      if (LUTE_USER_SETTINGS && LUTE_USER_SETTINGS.open_popup_in_new_tab) {
+        settings = null;
+      }
+      window.open(url, 'youglishwin', settings);
+    };
+
+    super("youglish-btn", "YouGlish", "Look up on YouGlish", "dict-youglish-btn", handler);
   }
 }
 
@@ -351,7 +390,7 @@ function createLookupButtons(tab_count = 5) {
     first_button.do_lookup();
   }
 
-  for (let b of [new SentenceLookupButton(), new ImageLookupButton()])
+  for (let b of [new SentenceLookupButton(), new ImageLookupButton(), new YouGlishLookupButton()])
     document.getElementById("dicttabsstatic").appendChild(b.btn);
 
   const dictframes = document.getElementById("dictframes");
