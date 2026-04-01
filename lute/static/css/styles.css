@@ -875,12 +875,12 @@ img
 
 .kwordmarked
 {
-    border-bottom: 1px solid red !important;
+    background: #2563eb !important;
 }
 
 .newmultiterm
 {
-    background: yellow !important;
+    background: #2563eb !important;
 }
 
 #termtags
